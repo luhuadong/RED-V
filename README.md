@@ -12,4 +12,5 @@ RED-V 是一个低成本的开源开发板，大小和流行的 Arduino 板子�
 - <https://github.com/sifive/freedom-e-sdk>
 - <https://www.sifive.com/software>
 - <https://www.sifive.com/chip-designer>
+- <https://learn.sparkfun.com/tutorials/red-v-development-guide/all>
 - <https://www.eetree.cn/doc/detail/2040>
