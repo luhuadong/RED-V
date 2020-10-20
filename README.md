@@ -5,7 +5,7 @@ RED-V 是一个低成本的开源开发板，大小和流行的 Arduino 板子�
 
 
 
-![](./images/Terminal.png)
+![](./images/Hello_RISCV.png)
 
 
 
