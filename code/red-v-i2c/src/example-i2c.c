@@ -11,6 +11,8 @@
 
 #include "bme680.h"
 
+#define LED_PIN    5
+
 /* BME280 sensor modules are connected to I2C0 bus */
 #define BME280_SENSOR_I2C_ADDR    0x76
 #define BME280_SENSOR_ID          0x60
@@ -233,7 +235,6 @@ static int ccs811_sensor_init(void)
 	uint8_t hardware_id = 0;
 
 	/* Soft reset */
-	/*
 	cmd[0] = CCS811_REG_SW_RESET;
 	cmd[1] = 0x11;
 	cmd[2] = 0xE5;
@@ -242,7 +243,9 @@ static int ccs811_sensor_init(void)
 	if (read_word_from_command(cmd, 5, 10, NULL, 0))
 	{
 	    return RET_NOK;
-	}*/
+	}
+
+	delay_ms(200);
 
 	/* Get sensor id */
 	cmd[0] = CCS811_REG_HW_ID;
@@ -281,7 +284,19 @@ int main(void) {
 	time_t timeout;
 
 	printf("%s %s \n", __DATE__, __TIME__);
-	printf("BME280 I2C demo test..\n");
+	printf("BME680 I2C demo test..\n");
+
+	struct metal_gpio *led0 = metal_gpio_get_device(0);
+	if (led0 == NULL)
+	{
+		printf("Not found LED device.\n");
+	}
+
+	metal_gpio_disable_input(led0, LED_PIN);
+	metal_gpio_enable_output(led0, LED_PIN);
+	metal_gpio_disable_pinmux(led0, LED_PIN);
+	metal_gpio_set_pin(led0, LED_PIN, 1);
+
 
 	i2c_bus = metal_i2c_get_device(0);
 	if (i2c_bus == NULL) {
@@ -290,7 +305,7 @@ int main(void) {
 	}
 	metal_i2c_init(i2c_bus, I2C_BAUDRATE, METAL_I2C_MASTER);
 
-#if 0
+#if 1
 	if (BME680_OK != bme680_sensor_init()) {
 		printf("Senseo device init failed\n");
 		return RET_NOK;
@@ -303,15 +318,15 @@ int main(void) {
 #endif
 
 	printf("Sensor init ok (id = 0x%02x)\n", sensor.chip_id);
-	delay_ms(2000);
+	delay_ms(1000);
 
 	uint16_t measure_data[2] = {0};
 
 	/* Loop and print data from slaves every 1s */
 	while (1) {
 
-#if 0
-		struct bme680_field_data data;
+#if 1
+		struct bme680_field_data data = {0};
 
 		if (BME680_OK != bme680_get_sensor_data(&data, &sensor))
 		{
@@ -332,7 +347,14 @@ int main(void) {
 		}
 #endif
 
-		delay_ms(2000);
+		metal_gpio_toggle_pin(led0, LED_PIN);
+		delay_ms(500);
+		metal_gpio_toggle_pin(led0, LED_PIN);
+		delay_ms(500);
+		metal_gpio_toggle_pin(led0, LED_PIN);
+		delay_ms(500);
+		metal_gpio_toggle_pin(led0, LED_PIN);
+		delay_ms(500);
 	}
 
 	return RET_OK;
