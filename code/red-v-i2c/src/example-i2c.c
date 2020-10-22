@@ -18,6 +18,49 @@
 #define BME680_SENSOR_I2C_ADDR    0x77
 #define BME680_SENSOR_ID          0x61
 
+#define CCS811_SENSOR_I2C_ADDR    0x5B
+#define CCS811_SENSOR_ID          0x81
+
+#define CCS811_REG_STATUS                        0x00
+#define CCS811_REG_MEAS_MODE                     0x01
+#define CCS811_REG_ALG_RESULT_DATA               0x02
+#define CCS811_REG_RAW_DATA                      0x03
+#define CCS811_REG_ENV_DATA                      0x05
+#define CCS811_REG_THRESHOLDS                    0x10
+#define CCS811_REG_BASELINE                      0x11
+#define CCS811_REG_HW_ID                         0x20
+#define CCS811_REG_HW_VERSION                    0x21
+#define CCS811_REG_FW_BOOT_VERSION               0x23
+#define CCS811_REG_FW_APP_VERSION                0x24
+#define CCS811_REG_INTERNAL_STATE                0xA0
+#define CCS811_REG_ERROR_ID                      0xE0
+#define CCS811_REG_SW_RESET                      0xFF
+
+#define CCS811_BOOTLOADER_APP_ERASE              0xF1
+#define CCS811_BOOTLOADER_APP_DATA               0xF2
+#define CCS811_BOOTLOADER_APP_VERIFY             0xF3
+#define CCS811_BOOTLOADER_APP_START              0xF4
+
+#define CCS811_HW_ID                             0x81
+
+typedef enum
+{
+    CCS811_MODE_0,      /* Idle (Measurements are disabled in this mode) */
+    CCS811_MODE_1,      /* Constant power mode, IAQ measurement every second */
+    CCS811_MODE_2,      /* Pulse heating mode IAQ measurement every 10 seconds */
+    CCS811_MODE_3,      /* Low power pulse heating mode IAQ measurement every 60 seconds */
+    CCS811_MODE_4       /* Constant power mode, sensor measurement every 250ms */
+
+} ccs811_mode_t;
+
+struct ccs811_meas_mode
+{
+    uint8_t       thresh;
+    uint8_t       interrupt;
+    ccs811_mode_t mode;
+};
+
+
 #define I2C_BAUDRATE              100000
 
 #define BME280_DATA_ADDR          0xF7
@@ -80,7 +123,31 @@ static int8_t i2c_read_reg(uint8_t addr, uint8_t reg, uint8_t *data, uint16_t le
     return ret;
 }
 
-static int sensor_init(void)
+static int read_word_from_command(uint8_t cmd[], uint8_t cmdlen, uint16_t delayms, uint8_t *readdata, uint8_t readlen)
+{
+	int ret = 0;
+
+#if 1
+    /* Request */
+	metal_i2c_write(i2c_bus, CCS811_SENSOR_I2C_ADDR, cmdlen, cmd, METAL_I2C_STOP_DISABLE);
+    //rt_i2c_master_send(bus, CCS811_I2C_ADDRESS, RT_I2C_WR, cmd, cmdlen);
+
+    delay_ms(delayms);
+
+    /* If not need reply */
+    if (readlen == 0) return RET_OK;
+
+    /* Response */
+    ret = metal_i2c_read(i2c_bus, CCS811_SENSOR_I2C_ADDR, readlen, readdata, METAL_I2C_STOP_ENABLE);
+    //rt_i2c_master_recv(bus, CCS811_I2C_ADDRESS, RT_I2C_RD, readdata, readlen)
+#else
+    ret = metal_i2c_transfer(i2c_bus, CCS811_SENSOR_I2C_ADDR, cmd, cmdlen, readdata, readlen);
+#endif
+
+    return ret;
+}
+
+static int bme680_sensor_init(void)
 {
 	int8_t rslt = BME680_OK;
 
@@ -128,6 +195,86 @@ static int sensor_init(void)
 	return rslt;
 }
 
+
+static int ccs811_set_measure_mode(void *args)
+{
+    struct ccs811_meas_mode *meas = (struct ccs811_meas_mode *)args;
+    uint8_t cmd[2] = {0};
+
+    cmd[0] = CCS811_REG_MEAS_MODE;
+    cmd[1] = (meas->thresh << 2) | (meas->interrupt << 3) | (meas->mode << 4);
+
+    if (read_word_from_command(cmd, 2, 10, NULL, 0))
+        return RET_NOK;
+
+    return RET_OK;
+}
+
+static int ccs811_get_data(uint16_t reply[], const size_t len)
+{
+    if (len < 2)
+        return RET_NOK;
+
+    uint8_t cmd[1] = {CCS811_REG_ALG_RESULT_DATA};
+    uint8_t buffer[8] = {0};
+
+    if (read_word_from_command(cmd, 1, 10, buffer, 8))
+        return RET_NOK;
+
+    reply[0] = (((uint16_t)buffer[0] << 8) | (uint16_t)buffer[1]);  /* eCO2 */
+    reply[1] = (((uint16_t)buffer[2] << 8) | (uint16_t)buffer[3]);  /* TVOC */
+
+    return RET_OK;
+}
+
+static int ccs811_sensor_init(void)
+{
+	uint8_t cmd[5] = {0};
+	uint8_t hardware_id = 0;
+
+	/* Soft reset */
+	/*
+	cmd[0] = CCS811_REG_SW_RESET;
+	cmd[1] = 0x11;
+	cmd[2] = 0xE5;
+	cmd[3] = 0x72;
+	cmd[4] = 0x8A;
+	if (read_word_from_command(cmd, 5, 10, NULL, 0))
+	{
+	    return RET_NOK;
+	}*/
+
+	/* Get sensor id */
+	cmd[0] = CCS811_REG_HW_ID;
+	//if (read_word_from_command(cmd, 1, 10, &hardware_id, 1))
+	//    return RET_NOK;
+
+	metal_i2c_transfer(i2c_bus, CCS811_SENSOR_I2C_ADDR, cmd, 1, &hardware_id, 1);
+
+	if (hardware_id != CCS811_HW_ID)
+	{
+	    printf("sensor hardware id not 0x%x\n", CCS811_HW_ID);
+	    return RET_NOK;
+	}
+
+	/* Start app */
+	cmd[0] = CCS811_BOOTLOADER_APP_START;
+	if (read_word_from_command(cmd, 1, 10, NULL, 0))
+	    return RET_NOK;
+
+	/* Set measurement mode */
+	//setMeasurementMode(0,0,eMode4);
+	struct ccs811_meas_mode meas = {0, 0, CCS811_MODE_4};
+	ccs811_set_measure_mode(&meas);
+
+	/* Set env data */
+	//setInTempHum(25, 50);
+	//struct ccs811_envdata envdata = {25, 50};
+	//_ccs811_set_envdata(i2c_bus, &envdata);
+
+	return RET_OK;
+}
+
 int main(void) {
 
 	unsigned char buf[LEN8];
@@ -143,20 +290,29 @@ int main(void) {
 	}
 	metal_i2c_init(i2c_bus, I2C_BAUDRATE, METAL_I2C_MASTER);
 
-	if (BME680_OK != sensor_init()) {
+#if 0
+	if (BME680_OK != bme680_sensor_init()) {
 		printf("Senseo device init failed\n");
 		return RET_NOK;
 	}
+#else
+	if (RET_OK != ccs811_sensor_init()) {
+		printf("Senseo device init failed\n");
+		return RET_NOK;
+	}
+#endif
 
 	printf("Sensor init ok (id = 0x%02x)\n", sensor.chip_id);
 	delay_ms(2000);
 
+	uint16_t measure_data[2] = {0};
+
 	/* Loop and print data from slaves every 1s */
 	while (1) {
 
+#if 0
 		struct bme680_field_data data;
 
-#if 0
 		if (BME680_OK != bme680_get_sensor_data(&data, &sensor))
 		{
 		    printf("Can not read from bme680\n");
@@ -166,21 +322,14 @@ int main(void) {
 			printf("temp: %d, baro: %d, humi: %d, gas: %d\n", data.temperature, data.pressure, data.humidity, data.gas_resistance);
 		}
 #else
-		uint8_t test_buf[2];
-		i2c_read_reg(BME680_SENSOR_I2C_ADDR, 0xD0, test_buf, 1);
-		printf("[%s] id: 0x%02x\n", __TIME__, test_buf[0]);
-
-		i2c_read_reg(BME680_SENSOR_I2C_ADDR, 0x1D, test_buf, 1);
-		printf("[%s] status: 0x%02x\n", __TIME__, test_buf[0]);
-
-		i2c_read_reg(BME680_SENSOR_I2C_ADDR, 0x1F, test_buf, 1);
-		printf("[%s] data: 0x%02x\n", __TIME__, test_buf[0]);
-
-		i2c_read_reg(BME680_SENSOR_I2C_ADDR, 0x20, test_buf, 1);
-		printf("[%s] data: 0x%02x\n", __TIME__, test_buf[0]);
-
-		i2c_read_reg(BME680_SENSOR_I2C_ADDR, 0x21, test_buf, 1);
-		printf("[%s] data: 0x%02x\n", __TIME__, test_buf[0]);
+		if (ccs811_get_data(measure_data, 2))
+		{
+			printf("Can not read from ccs811\n");
+		}
+		else
+		{
+			printf("eco2: %d, tvoc: %d\n", measure_data[0], measure_data[1]);
+		}
 #endif
 
 		delay_ms(2000);
