@@ -2,6 +2,18 @@
 
 
 
+## RED-V
+
+
+
+```shell
+red-v$ ls
+applications  drivers  freedom-e-sdk  Makefile     openocd.sh  rtconfig.h   SConscript
+docs          figures  Kconfig        openocd.cfg  README.md   rtconfig.py  SConstruct
+```
+
+
+
 
 
 ## HiFive1 示例 ##
