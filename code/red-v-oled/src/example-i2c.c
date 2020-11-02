@@ -64,19 +64,19 @@ void I2C_WriteByte(uint8_t addr,uint8_t data)
 	metal_i2c_write(i2c_bus, OLED_I2C_ADDRESS, 2, buf, METAL_I2C_STOP_ENABLE);
 }
 
-void WriteCmd(unsigned char I2C_Command)//д����
+void WriteCmd(unsigned char I2C_Command)
 {
 	I2C_WriteByte(0x00, I2C_Command);
 }
 
-void WriteDat(unsigned char I2C_Data)//д����
+void WriteDat(unsigned char I2C_Data)
 {
 	I2C_WriteByte(0x40, I2C_Data);
 }
 
 void OLED_Init(void)
 {
-	DelayMs(100); //�������ʱ����Ҫ
+	DelayMs(100);
 
 	WriteCmd(0xAE); //display off
 	WriteCmd(0x20);	//Set Memory Addressing Mode
@@ -282,28 +282,28 @@ int main(void) {
   /* Loop and print data from slaves every 1s */
   while (1) {
 
-	  OLED_Fill(0xFF);//È«ÆÁµãÁÁ
+	  OLED_Fill(0xFF); // 填充
 	  delay_ms(2000);
 
-	  OLED_Fill(0x00);//È«ÆÁÃð
+	  OLED_Fill(0x00); // 清空
 	  delay_ms(2000);
 
 	  for(int i=0;i<5;i++)
 	  {
-		  OLED_ShowCN(22+i*16,0,i);//²âÊÔÏÔÊ¾ÖÐÎÄ
+		  OLED_ShowCN(22+i*16,0,i); // 显示中文
 	  }
 	  delay_ms(2000);
 
-	  OLED_ShowStr(0,3,"SparkFun Red-V Board",1);//²âÊÔ6*8×Ö·û
-	  OLED_ShowStr(0,4,"Hello Funpack",2);				//²âÊÔ8*16×Ö·û
+	  OLED_ShowStr(0,3,"SparkFun Red-V Board",1);  // 显示英文字符
+	  OLED_ShowStr(0,4,"Hello Funpack",2);
 	  delay_ms(2000);
 
-	  OLED_CLS();//ÇåÆÁ
-	  OLED_OFF();//²âÊÔOLEDÐÝÃß
+	  OLED_CLS();
+	  OLED_OFF();
 	  delay_ms(2000);
 
-	  OLED_ON();//²âÊÔOLEDÐÝÃßºó»½ÐÑ
-	  OLED_DrawBMP(0,0,128,8,(unsigned char *)BMP1);//²âÊÔBMPÎ»Í¼ÏÔÊ¾
+	  OLED_ON();
+	  OLED_DrawBMP(0,0,128,8,(unsigned char *)BMP1); // 绘图
 	  delay_ms(2000);
   }
 

@@ -24,6 +24,9 @@
 #define PWM_DEV_NUM     0
 #define PWM_CHANNEL     1
 
+#define REMAIN_TIME     35
+#define DUTY_MAX        47
+
 /* Return values */
 #define RET_OK          0
 #define RET_NOK         1
@@ -167,15 +170,11 @@ int main(void) {
     //metal_pwm_set_duty(pwm, 3, 20, METAL_PWM_PHASE_CORRECT_DISABLE);
 #endif
 
-#define REMAIN_TIME   35
-#define DUTY_MAX      47
-
     int i = 0;
 
     /* Loop forever */
     while (1) {
-        /* Wait 1s */
-        //WAIT_1S(timeout);
+
     	for (i=0; i<=DUTY_MAX; i++)
     	{
     		metal_pwm_set_duty(pwm, PWM_CHANNEL, i, METAL_PWM_PHASE_CORRECT_DISABLE);
