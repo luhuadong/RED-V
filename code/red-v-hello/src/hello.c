@@ -35,7 +35,7 @@ int main()
 		printf("Not found GPIO device.\n");
 	}
 
-	metal_gpio_disable_input(led0, LED_PIN);
+	//metal_gpio_disable_input(led0, LED_PIN);
 	metal_gpio_enable_output(led0, LED_PIN);
 	metal_gpio_disable_pinmux(led0, LED_PIN);
 	metal_gpio_set_pin(led0, LED_PIN, 1);
